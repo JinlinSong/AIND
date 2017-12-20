@@ -13,9 +13,13 @@ unitlist = unitlist + d1_unit + d2_unit
 units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
 peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
 
-def naked_twins(values):
+# implement naked pairs
+def naked_twins(values_para):
+    values = values_para.copy()
     potential_twins = [box for box in values.keys() if len(values[box]) == 2]
-    naked_twins = [[box1,box2] for box1 in potential_twins for box2 in potential_twins if box2 in peers[box1] and values[box1] == values[box2] and box1 < box2]
+    naked_twins = [[box1,box2] for box1 in potential_twins
+                                for box2 in potential_twins
+                                    if box2 in peers[box1] and values[box1] == values[box2] and box1 < box2]
 
     for naked_twin in naked_twins:
         box1, box2 = naked_twin
@@ -29,6 +33,62 @@ def naked_twins(values):
             if len(values[peer_twin]) >= 2:
                 for digit in digits:
                     values = assign_value(values, peer_twin, values[peer_twin].replace(digit,''))
+    return values
+
+# implement naked triples
+def naked_triples(values_para):
+    values = values_para.copy()
+    potential_triples = [box for box in values.keys() if len(values[box]) >= 2 and len(values[box]) <= 3]
+    naked_triples = [[box1, box2, box3]
+                    for box1 in potential_triples
+                        for box2 in potential_triples
+                            for box3 in potential_triples
+                                if box1 in peers[box2] and box1 in peers[box3] and box2 in peers[box3]
+                                 and len(set(values[box1] + values[box2] + values[box3])) == 3
+                                 and box1 < box2 and box2 < box3]
+
+    for naked_triple in naked_triples:
+        box1, box2, box3 = naked_triple
+        digits = set(values[box1] + values[box2] + values[box3])
+        
+        # 1- compute intersection of peers
+        peers_triple = peers[box1] & peers[box2] & peers[box3]
+        
+        # 2- Delete the three digits in naked triples from all common peers.
+        for peer_triple in peers_triple:
+            if len(values[peer_triple]) >= 2:
+                for digit in digits:
+                    #values = assign_value(values, peer_triple, values[peer_triple].replace(digit,''))
+                    values[peer_triple] = values[peer_triple].replace(digit,'')
+    return values
+
+# implement naked quads
+def naked_quads(values_para):
+    values = values_para.copy()
+    potential_quads = [box for box in values.keys() if len(values[box]) >= 2 and len(values[box]) <= 4]
+    naked_quads = [[box1, box2, box3, box4]
+                    for box1 in potential_quads
+                        for box2 in potential_quads
+                            for box3 in potential_quads
+                               for box4 in potential_quads
+                                if box1 in peers[box2] and box1 in peers[box3] and box2 in peers[box3]
+                                 and box4 in peers[box1] and box4 in peers[box2] and box4 in peers[box3]
+                                 and len(set(values[box1] + values[box2] + values[box3] + values[box4])) == 4
+                                 and box1 < box2 and box2 < box3 and box3 < box4]
+
+    for naked_quad in naked_quads:
+        box1, box2, box3, box4 = naked_quad
+        digits = set(values[box1] + values[box2] + values[box3] + values[box4])
+        
+        # 1- compute intersection of peers
+        peers_quad = peers[box1] & peers[box2] & peers[box3] & peers[box4]
+        
+        # 2- Delete the four digits in naked quads from all common peers.
+        for peer_quad in peers_quad:
+            if len(values[peer_quad]) >= 2:
+                for digit in digits:
+                    #values = assign_value(values, peer_quad, values[peer_quad].replace(digit,''))
+                    values[peer_quad] = values[peer_quad].replace(digit,'')
     return values
 
 def eliminate(values):
@@ -82,6 +142,12 @@ def reduce_puzzle(values):
 
         # Eliminate values using the naked twins strategy
         values = naked_twins(values)
+
+        # Eliminate values using the naked triples strategy
+        values = naked_triples(values)
+
+        # Eliminate values using the naked quads strategy
+        values = naked_quads(values)
 
         # Check how many boxes have a determined value, to compare
         solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
