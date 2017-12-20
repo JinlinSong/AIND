@@ -1,133 +1,117 @@
-
 from utils import *
-
 
 row_units = [cross(r, cols) for r in rows]
 column_units = [cross(rows, c) for c in cols]
 square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
 unitlist = row_units + column_units + square_units
+d1_unit = [[rows[i]+cols[i] for i in range(len(rows))]]
+d2_unit = [[rows[::-1][i]+cols[i] for i in range(len(rows))]]
 
 # TODO: Update the unit list to add the new diagonal units
-unitlist = unitlist
+unitlist = unitlist + d1_unit + d2_unit
 
 units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
 peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
 
-
 def naked_twins(values):
-    """Eliminate values using the naked twins strategy.
+    potential_twins = [box for box in values.keys() if len(values[box]) == 2]
+    naked_twins = [[box1,box2] for box1 in potential_twins for box2 in potential_twins if box2 in peers[box1] and values[box1] == values[box2] and box1 < box2]
 
-    Parameters
-    ----------
-    values(dict)
-        a dictionary of the form {'box_name': '123456789', ...}
-
-    Returns
-    -------
-    dict
-        The values dictionary with the naked twins eliminated from peers
-
-    Notes
-    -----
-    Your solution can either process all pairs of naked twins from the input once,
-    or it can continue processing pairs of naked twins until there are no such
-    pairs remaining -- the project assistant test suite will accept either
-    convention. However, it will not accept code that does not process all pairs
-    of naked twins from the original input. (For example, if you start processing
-    pairs of twins and eliminate another pair of twins before the second pair
-    is processed then your code will fail the PA test suite.)
-
-    The first convention is preferred for consistency with the other strategies,
-    and because it is simpler (since the reduce_puzzle function already calls this
-    strategy repeatedly).
-    """
-    # TODO: Implement this function!
-    raise NotImplementedError
-
+    for naked_twin in naked_twins:
+        box1, box2 = naked_twin
+        digits = values[box1]
+        
+        # 1- compute intersection of peers
+        peers_twin = peers[box1] & peers[box2]
+        
+        # 2- Delete the two digits in naked twins from all common peers.
+        for peer_twin in peers_twin:
+            if len(values[peer_twin]) >= 2:
+                for digit in digits:
+                    values = assign_value(values, peer_twin, values[peer_twin].replace(digit,''))
+    return values
 
 def eliminate(values):
-    """Apply the eliminate strategy to a Sudoku puzzle
+    """Eliminate values from peers of each box with a single value.
 
-    The eliminate strategy says that if a box has a value assigned, then none
-    of the peers of that box can have the same value.
+    Go through all the boxes, and whenever there is a box with a single value,
+    eliminate this value from the set of values of all its peers.
 
-    Parameters
-    ----------
-    values(dict)
-        a dictionary of the form {'box_name': '123456789', ...}
-
-    Returns
-    -------
-    dict
-        The values dictionary with the assigned values eliminated from peers
+    Args:
+        values: Sudoku in dictionary form.
+    Returns:
+        Resulting Sudoku in dictionary form after eliminating values.
     """
-    # TODO: Copy your code from the classroom to complete this function
-    raise NotImplementedError
+    solved_values = [box for box in values.keys() if len(values[box]) == 1]
+    for box in solved_values:
+        digit = values[box]
+        for peer in peers[box]:
+            values[peer] = values[peer].replace(digit,'')
+    return values
 
 
 def only_choice(values):
-    """Apply the only choice strategy to a Sudoku puzzle
+    """Finalize all values that are the only choice for a unit.
 
-    The only choice strategy says that if only one box in a unit allows a certain
-    digit, then that box must be assigned that digit.
+    Go through all the units, and whenever there is a unit with a value
+    that only fits in one box, assign the value to this box.
 
-    Parameters
-    ----------
-    values(dict)
-        a dictionary of the form {'box_name': '123456789', ...}
-
-    Returns
-    -------
-    dict
-        The values dictionary with all single-valued boxes assigned
-
-    Notes
-    -----
-    You should be able to complete this function by copying your code from the classroom
+    Input: Sudoku in dictionary form.
+    Output: Resulting Sudoku in dictionary form after filling in only choices.
     """
-    # TODO: Copy your code from the classroom to complete this function
-    raise NotImplementedError
+    # TODO: Implement only choice strategy here
+    for unit in unitlist:
+        for digit in '123456789':
+            dplaces = [box for box in unit if digit in values[box]]
+            if len(dplaces) == 1:
+                values[dplaces[0]] = digit
+    return values
 
 
 def reduce_puzzle(values):
-    """Reduce a Sudoku puzzle by repeatedly applying all constraint strategies
+    stalled = False
+    while not stalled:
+        # Check how many boxes have a determined value
+        solved_values_before = len([box for box in values.keys() if len(values[box]) == 1])
 
-    Parameters
-    ----------
-    values(dict)
-        a dictionary of the form {'box_name': '123456789', ...}
+        # Your code here: Use the Eliminate Strategy
+        values = eliminate(values)
 
-    Returns
-    -------
-    dict or False
-        The values dictionary after continued application of the constraint strategies
-        no longer produces any changes, or False if the puzzle is unsolvable 
-    """
-    # TODO: Copy your code from the classroom and modify it to complete this function
-    raise NotImplementedError
+        # Your code here: Use the Only Choice Strategy
+        values = only_choice(values)
+
+        # Eliminate values using the naked twins strategy
+        values = naked_twins(values)
+
+        # Check how many boxes have a determined value, to compare
+        solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
+
+        # If no new values were added, stop the loop.
+        stalled = solved_values_before == solved_values_after
+
+        # Sanity check, return False if there is a box with zero available values:
+        if len([box for box in values.keys() if len(values[box]) == 0]):
+            return False
+    return values
 
 
 def search(values):
-    """Apply depth first search to solve Sudoku puzzles in order to solve puzzles
-    that cannot be solved by repeated reduction alone.
-
-    Parameters
-    ----------
-    values(dict)
-        a dictionary of the form {'box_name': '123456789', ...}
-
-    Returns
-    -------
-    dict or False
-        The values dictionary with all boxes assigned or False
-
-    Notes
-    -----
-    You should be able to complete this function by copying your code from the classroom
-    and extending it to call the naked twins strategy.
-    """
-    # TODO: Copy your code from the classroom to complete this function
-    raise NotImplementedError
+    "Using depth-first search and propagation, create a search tree and solve the sudoku."
+    # First, reduce the puzzle using the previous function
+    values = reduce_puzzle(values)
+    if values is False:
+        return False ## Failed earlier
+    if all(len(values[s]) == 1 for s in boxes): 
+        return values ## Solved!
+    # Choose one of the unfilled squares with the fewest possibilities
+    n,s = min((len(values[s]), s) for s in boxes if len(values[s]) > 1)
+    # Now use recursion to solve each one of the resulting sudokus, and if one returns a value (not False), return that answer!
+    for value in values[s]:
+        new_sudoku = values.copy()
+        new_sudoku[s] = value
+        attempt = search(new_sudoku)
+        if attempt:
+            return attempt
 
 
 def solve(grid):

@@ -1,5 +1,3 @@
-
-
 rows = 'ABCDEFGHI'
 cols = '123456789'
 boxes = [r + c for r in rows for c in cols]
